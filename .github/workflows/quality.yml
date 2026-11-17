@@ -134,13 +134,21 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      - name: Upload SARIF to code scanning
-        if: always()
+      - name: Upload src SARIF to code scanning
+        if: always() && hashFiles('cqa-reports/src.sarif') != ''
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
-          sarif_file: cqa-reports
-          category: cqa
+          sarif_file: cqa-reports/src.sarif
+          category: cqa-src
+
+      - name: Upload packages SARIF to code scanning
+        if: always() && hashFiles('cqa-reports/packages.sarif') != ''
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: cqa-reports/packages.sarif
+          category: cqa-packages
 
       - name: Upload reports
         if: always()
