@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Node
+node_modules/
+packages/*/dist/
+*.tsbuildinfo
+npm-debug.log*
+
+# CQA artifacts
+.cqa-cache/
+cqa-reports/
+cqa-results.json
+cqa.sarif
+cqa.toml.local

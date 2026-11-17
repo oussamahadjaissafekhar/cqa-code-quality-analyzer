@@ -1,0 +1,186 @@
+name: CQA
+
+description: Run Code Quality Analyzer and publish JSON, SARIF, and annotations.
+
+inputs:
+  path:
+    description: File or directory to analyze, relative to the workspace.
+    required: false
+    default: "."
+  config:
+    description: Path to a cqa.toml config file. Empty uses auto-discovery.
+    required: false
+    default: ""
+  fail-on:
+    description: Severity that fails the quality gate.
+    required: false
+    default: "high"
+  format:
+    description: Console report format (json, sarif, markdown, github, table).
+    required: false
+    default: "github"
+  sarif:
+    description: Write cqa.sarif in addition to the JSON result.
+    required: false
+    default: "true"
+  upload-sarif:
+    description: Upload cqa.sarif to GitHub code scanning.
+    required: false
+    default: "true"
+  baseline:
+    description: Fingerprint baseline file used to suppress accepted findings.
+    required: false
+    default: ""
+  image:
+    description: CQA container image to run.
+    required: false
+    default: "cqa:local"
+  extra-args:
+    description: Additional arguments appended to `cqa analyze`.
+    required: false
+    default: ""
+
+outputs:
+  json-path:
+    description: Path to the canonical JSON result.
+    value: ${{ steps.run.outputs.json-path }}
+  sarif-path:
+    description: Path to the SARIF report.
+    value: ${{ steps.run.outputs.sarif-path }}
+  score:
+    description: Numeric quality score from summary.score.
+    value: ${{ steps.run.outputs.score }}
+  failed:
+    description: "true when the CLI returned exit code 1 (quality gate)."
+    value: ${{ steps.run.outputs.failed }}
+  finding-count:
+    description: Number of findings in the JSON result.
+    value: ${{ steps.run.outputs.finding-count }}
+
+runs:
+  using: composite
+  steps:
+    - id: run
+      shell: bash
+      env:
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_CONFIG: ${{ inputs.config }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_FORMAT: ${{ inputs.format }}
+        INPUT_SARIF: ${{ inputs.sarif }}
+        INPUT_BASELINE: ${{ inputs.baseline }}
+        INPUT_IMAGE: ${{ inputs.image }}
+        INPUT_EXTRA_ARGS: ${{ inputs.extra-args }}
+      run: |
+        set -u
+
+        args=(analyze "$INPUT_PATH" --format json --output cqa-results.json --fail-on "$INPUT_FAIL_ON")
+        if [ -n "$INPUT_CONFIG" ]; then args+=(--config "$INPUT_CONFIG"); fi
+        if [ -n "$INPUT_BASELINE" ]; then args+=(--baseline "$INPUT_BASELINE"); fi
+        if [ "$INPUT_SARIF" = "true" ]; then args+=(--sarif cqa.sarif); fi
+        # shellcheck disable=SC2206
+        if [ -n "$INPUT_EXTRA_ARGS" ]; then args+=($INPUT_EXTRA_ARGS); fi
+
+        # Mount the runner's step-summary file so the CLI can append from the
+        # container; the path is not under the workspace bind mount.
+        summary_args=()
+        if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+          touch "$GITHUB_STEP_SUMMARY"
+          summary_args=(-v "${GITHUB_STEP_SUMMARY}:${GITHUB_STEP_SUMMARY}")
+        fi
+
+        # Capture the exit code instead of letting `set -e` hide 1 vs 2-5.
+        set +e
+        docker run --rm \
+          --user "$(id -u):$(id -g)" \
+          -v "$GITHUB_WORKSPACE:/workspace" \
+          -w /workspace \
+          "${summary_args[@]}" \
+          -e HOME=/tmp \
+          -e XDG_CACHE_HOME=/tmp/.cache \
+          -e GITHUB_ACTIONS=true \
+          -e GITHUB_WORKSPACE=/workspace \
+          -e GITHUB_STEP_SUMMARY \
+          "$INPUT_IMAGE" "${args[@]}"
+        code=$?
+        set -e
+
+        if [ -f cqa-results.json ]; then
+          echo "json-path=cqa-results.json" >> "$GITHUB_OUTPUT"
+          if command -v node >/dev/null 2>&1; then
+            node -e '
+              const fs = require("fs");
+              const result = JSON.parse(fs.readFileSync("cqa-results.json", "utf8"));
+              fs.appendFileSync(process.env.GITHUB_OUTPUT, `score=${result.summary.score}\n`);
+              fs.appendFileSync(process.env.GITHUB_OUTPUT, `finding-count=${result.summary.findings}\n`);
+            '
+          else
+            echo "score=" >> "$GITHUB_OUTPUT"
+            echo "finding-count=" >> "$GITHUB_OUTPUT"
+          fi
+        else
+          echo "json-path=" >> "$GITHUB_OUTPUT"
+          echo "score=" >> "$GITHUB_OUTPUT"
+          echo "finding-count=" >> "$GITHUB_OUTPUT"
+        fi
+
+        if [ -f cqa.sarif ]; then
+          echo "sarif-path=cqa.sarif" >> "$GITHUB_OUTPUT"
+        else
+          echo "sarif-path=" >> "$GITHUB_OUTPUT"
+        fi
+
+        if [ "$code" -eq 1 ]; then
+          echo "failed=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "failed=false" >> "$GITHUB_OUTPUT"
+        fi
+
+        # Optional console rendering (GitHub annotations by default). The JSON
+        # run above owns the quality gate, so failures here are not authoritative.
+        if [ "$INPUT_FORMAT" != "json" ]; then
+          set +e
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            -w /workspace \
+            "${summary_args[@]}" \
+            -e HOME=/tmp \
+            -e XDG_CACHE_HOME=/tmp/.cache \
+            -e GITHUB_ACTIONS=true \
+            -e GITHUB_WORKSPACE=/workspace \
+            "$INPUT_IMAGE" \
+            analyze "$INPUT_PATH" --format "$INPUT_FORMAT" --output - --fail-on never
+          set -e
+        fi
+
+        if [ "$code" -ge 2 ]; then
+          echo "cqa infrastructure error (exit $code)" >&2
+          exit "$code"
+        fi
+        exit 0
+
+    - id: sarif-check
+      shell: bash
+      run: |
+        if [ -s cqa.sarif ]; then
+          echo "exists=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "exists=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Upload SARIF
+      if: ${{ inputs.upload-sarif == 'true' && steps.sarif-check.outputs.exists == 'true' }}
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: cqa.sarif
+
+    - name: Upload CQA artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: cqa-results
+        path: |
+          cqa-results.json
+          cqa.sarif
+        if-no-files-found: warn
+        retention-days: 14

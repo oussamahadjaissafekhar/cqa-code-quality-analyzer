@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cqa.local/schemas/analysis-result.schema.json",
+  "title": "AnalysisResult",
+  "description": "Top-level machine-readable output of `cqa analyze`. Schema v1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "tool",
+    "generated_at",
+    "root",
+    "summary",
+    "findings",
+    "errors"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "parser_version"],
+      "properties": {
+        "name": { "const": "cqa" },
+        "version": { "type": "string" },
+        "parser_version": { "type": "string" }
+      }
+    },
+    "generated_at": {
+      "type": "string",
+      "description": "ISO-8601 UTC timestamp, e.g. 1970-01-01T00:00:00Z"
+    },
+    "root": { "type": "string" },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["files_scanned", "findings", "by_severity", "score", "truncated", "failed"],
+      "properties": {
+        "files_scanned": { "type": "integer", "minimum": 0 },
+        "findings": { "type": "integer", "minimum": 0 },
+        "by_severity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["critical", "high", "medium", "low", "info"],
+          "properties": {
+            "critical": { "type": "integer", "minimum": 0 },
+            "high": { "type": "integer", "minimum": 0 },
+            "medium": { "type": "integer", "minimum": 0 },
+            "low": { "type": "integer", "minimum": 0 },
+            "info": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "truncated": { "type": "boolean" },
+        "failed": { "type": "boolean" }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "finding.schema.json" }
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "message", "kind"],
+        "properties": {
+          "path": { "type": "string" },
+          "message": { "type": "string" },
+          "kind": { "type": "string", "enum": ["parse", "io", "internal"] }
+        }
+      }
+    }
+  }
+}

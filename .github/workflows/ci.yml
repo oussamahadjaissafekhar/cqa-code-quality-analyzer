@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  ts:
+    name: TypeScript
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run typecheck
+      - run: npm test
+
+  py:
+    name: Python
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci && npm run build
+      - run: pip install -e ".[dev]"
+      - run: ruff check src tests
+      - run: mypy src/cqa
+      - run: pytest
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    needs: py
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: docker build -f Dockerfile -t cqa:local .
+      - name: Smoke test
+        run: |
+          docker run --rm cqa:local version --format json
+          docker run --rm --user "$(id -u):$(id -g)" \
+            -e HOME=/tmp \
+            -v "$PWD:/workspace" -w /workspace \
+            cqa:local analyze examples/sample-src --format json --fail-on never \
+            > cqa-results.json
+      - name: Validate JSON schema
+        run: |
+          pip install jsonschema
+          python - <<'PY'
+          import json
+          from jsonschema import Draft202012Validator
+
+          result = json.load(open("cqa-results.json", encoding="utf-8"))
+          schema = json.load(open("contracts/analysis-result.schema.json", encoding="utf-8"))
+          Draft202012Validator(schema).validate(result)
+          print("schema valid:", result["summary"])
+          PY
+
+  action-smoke:
+    name: Composite action smoke
+    runs-on: ubuntu-latest
+    needs: docker
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f Dockerfile -t cqa:local .
+      - id: cqa
+        uses: ./.github/actions/cqa
+        with:
+          path: examples/sample-src
+          fail-on: never
+          upload-sarif: false
+      - run: |
+          test -s cqa-results.json
+          test -s cqa.sarif
+          echo "score=${{ steps.cqa.outputs.score }}"
+          echo "findings=${{ steps.cqa.outputs.finding-count }}"

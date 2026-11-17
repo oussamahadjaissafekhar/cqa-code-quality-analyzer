@@ -1,0 +1,125 @@
+{
+  "errors": [],
+  "findings": [
+    {
+      "end_col": 12,
+      "end_line": 7,
+      "fingerprint": "cqa:v1:dbd91bebeca03cf0",
+      "help_uri": "https://cqa.local/rules/secrets.hardcoded",
+      "message": "Possible hardcoded credential in source code",
+      "path": "vulnerable.py",
+      "rule_id": "secrets.hardcoded",
+      "schema_version": 1,
+      "severity": "critical",
+      "snippet": "API_KEY = \"sk-live-1234567890abcdef\"",
+      "start_col": 11,
+      "start_line": 7
+    },
+    {
+      "end_col": 22,
+      "end_line": 8,
+      "fingerprint": "cqa:v1:b1b4fa33ebde4650",
+      "help_uri": "https://cqa.local/rules/secrets.aws_key",
+      "message": "AWS access key id committed to source",
+      "path": "vulnerable.py",
+      "rule_id": "secrets.aws_key",
+      "schema_version": 1,
+      "severity": "critical",
+      "snippet": "AWS_ACCESS_KEY_ID = \"AKIAIOSFODNN7EXAMPLE\"",
+      "start_col": 21,
+      "start_line": 8
+    },
+    {
+      "end_col": 13,
+      "end_line": 14,
+      "fingerprint": "cqa:v1:defab87b87b398be",
+      "help_uri": "https://cqa.local/rules/sec.sql_concat",
+      "message": "SQL query built dynamically and passed to conn.execute()",
+      "path": "vulnerable.py",
+      "rule_id": "sec.sql_concat",
+      "schema_version": 1,
+      "severity": "high",
+      "snippet": "return conn.execute(query).fetchone()",
+      "start_col": 12,
+      "start_line": 14
+    },
+    {
+      "end_col": 6,
+      "end_line": 18,
+      "fingerprint": "cqa:v1:39cfa7915bd0e188",
+      "help_uri": "https://cqa.local/rules/sec.eval",
+      "message": "Use of eval() is unsafe",
+      "path": "vulnerable.py",
+      "rule_id": "sec.eval",
+      "schema_version": 1,
+      "severity": "high",
+      "snippet": "eval(expression)",
+      "start_col": 5,
+      "start_line": 18
+    },
+    {
+      "end_col": 6,
+      "end_line": 19,
+      "fingerprint": "cqa:v1:8bc40ed0b8f4ec29",
+      "help_uri": "https://cqa.local/rules/sec.yaml_unsafe",
+      "message": "yaml.load() used without SafeLoader",
+      "path": "vulnerable.py",
+      "rule_id": "sec.yaml_unsafe",
+      "schema_version": 1,
+      "severity": "high",
+      "snippet": "yaml.load(raw)",
+      "start_col": 5,
+      "start_line": 19
+    },
+    {
+      "end_col": 13,
+      "end_line": 9,
+      "fingerprint": "cqa:v1:db8a8b532156177a",
+      "help_uri": "https://cqa.local/rules/sec.insecure_http",
+      "message": "Cleartext HTTP URL in source code",
+      "path": "vulnerable.py",
+      "rule_id": "sec.insecure_http",
+      "schema_version": 1,
+      "severity": "medium",
+      "snippet": "BASE_URL = \"http://example.com/api\"",
+      "start_col": 12,
+      "start_line": 9
+    },
+    {
+      "end_col": 2,
+      "end_line": 23,
+      "fingerprint": "cqa:v1:583c63d48ec2770b",
+      "help_uri": "https://cqa.local/rules/quality.complexity",
+      "message": "Function classify() has cyclomatic complexity 11 (threshold 10)",
+      "path": "vulnerable.py",
+      "rule_id": "quality.complexity",
+      "schema_version": 1,
+      "severity": "low",
+      "snippet": "def classify(value: int) -> str:",
+      "start_col": 1,
+      "start_line": 23
+    }
+  ],
+  "generated_at": "1970-01-01T00:00:00Z",
+  "root": "tests/python/fixtures/repos/sample",
+  "schema_version": 1,
+  "summary": {
+    "by_severity": {
+      "critical": 2,
+      "high": 3,
+      "info": 0,
+      "low": 1,
+      "medium": 1
+    },
+    "failed": true,
+    "files_scanned": 2,
+    "findings": 7,
+    "score": 16,
+    "truncated": false
+  },
+  "tool": {
+    "name": "cqa",
+    "parser_version": "python-fallback-1",
+    "version": "0.1.0"
+  }
+}

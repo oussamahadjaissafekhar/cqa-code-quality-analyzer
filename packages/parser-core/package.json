@@ -1,0 +1,19 @@
+{
+  "name": "@cqa/parser-core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Language fact extractors for cqa (no verdicts, no IO policy)",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "tsc -b --clean",
+    "typecheck": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@cqa/shared": "0.1.0"
+  }
+}

@@ -1,0 +1,15 @@
+services:
+  cqa:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: ${CQA_IMAGE:-cqa:local}
+    working_dir: /workspace
+    volumes:
+      - ..:/workspace
+    environment:
+      GITHUB_ACTIONS: ${GITHUB_ACTIONS:-}
+      GITHUB_WORKSPACE: /workspace
+      GITHUB_STEP_SUMMARY: ${GITHUB_STEP_SUMMARY:-}
+    # Keep the container's default non-root user; cache and reports are written
+    # to the mounted workspace and are already ignored by .gitignore.

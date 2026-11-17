@@ -1,0 +1,158 @@
+name: Quality gate
+
+# Builds the production image, analyzes the shipped source trees, and fails the
+# job when CQA reports findings at or above the configured severity.
+#
+# Mark the "quality" job as a required status check in branch protection so a
+# failing gate actually blocks merging.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CQA_IMAGE: cqa:ci
+  CQA_FAIL_ON: high
+
+jobs:
+  quality:
+    name: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build analyzer image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          load: true
+          tags: cqa:ci
+          build-args: |
+            CQA_VERSION=0.1.0
+            CQA_REVISION=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test image
+        run: docker run --rm cqa:ci version --format json
+
+      # Repository fixtures intentionally contain secrets and vulnerable code,
+      # so the gate analyzes the shipped source trees instead of the whole repo.
+      - name: Analyze source trees
+        id: analyze
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p cqa-reports
+          declare -A codes
+          gate_failed=0
+
+          # Mount the runner's step-summary file so the CLI can append its
+          # Markdown report from inside the container.
+          summary_args=()
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+            touch "$GITHUB_STEP_SUMMARY"
+            summary_args=(-v "${GITHUB_STEP_SUMMARY}:${GITHUB_STEP_SUMMARY}")
+          fi
+
+          for path in src packages; do
+            name="${path//\//-}"
+            echo "::group::cqa analyze ${path}"
+
+            set +e
+            docker run --rm \
+              --user "$(id -u):$(id -g)" \
+              -v "${GITHUB_WORKSPACE}:/workspace" \
+              -w /workspace \
+              "${summary_args[@]}" \
+              -e HOME=/tmp \
+              -e XDG_CACHE_HOME=/tmp/.cache \
+              -e GITHUB_ACTIONS=true \
+              -e GITHUB_WORKSPACE=/workspace \
+              -e GITHUB_STEP_SUMMARY \
+              "${CQA_IMAGE}" analyze "${path}" \
+                --format json \
+                --output "cqa-reports/${name}.json" \
+                --sarif "cqa-reports/${name}.sarif" \
+                --fail-on "${CQA_FAIL_ON}"
+            code=$?
+            set -e
+
+            codes["$path"]=$code
+            echo "cqa analyze ${path} exited ${code}"
+            echo "::endgroup::"
+
+            case "$code" in
+              0) ;;
+              1) gate_failed=1 ;;
+              *)
+                echo "::error title=CQA infrastructure failure::analyze ${path} exited ${code}"
+                exit "$code"
+                ;;
+            esac
+          done
+
+          echo "gate_failed=${gate_failed}" >> "$GITHUB_OUTPUT"
+
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ] && command -v jq >/dev/null 2>&1; then
+            {
+              echo ""
+              echo "## CQA quality gate"
+              echo ""
+              echo "| Path | Findings | Critical | High | Score | Gate |"
+              echo "| --- | ---: | ---: | ---: | ---: | --- |"
+              for path in src packages; do
+                file="cqa-reports/${path//\//-}.json"
+                [ -f "$file" ] || continue
+                gate="PASS"
+                [ "${codes[$path]:-1}" -eq 0 ] || gate="FAIL"
+                jq -r --arg p "$path" --arg gate "$gate" '
+                  "| \($p) | \(.summary.findings) | \(.summary.by_severity.critical) | \(.summary.by_severity.high) | \(.summary.score) | \($gate) |"
+                ' "$file"
+              done
+              echo ""
+              echo "Threshold: findings at or above **${CQA_FAIL_ON}** fail the gate."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload SARIF to code scanning
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: cqa-reports
+          category: cqa
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cqa-reports
+          path: cqa-reports/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Enforce quality gate
+        if: steps.analyze.outputs.gate_failed == '1'
+        run: |
+          echo "::error title=CQA quality gate failed::Findings at or above '${CQA_FAIL_ON}' were reported. See the job summary and cqa-reports artifact."
+          exit 1

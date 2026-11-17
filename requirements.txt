@@ -1,0 +1,5 @@
+# CQA runtime dependencies
+click>=8.1,<9
+pydantic>=2.6,<3
+tomli>=2.0; python_version < "3.11"
+jsonschema>=4.20,<5

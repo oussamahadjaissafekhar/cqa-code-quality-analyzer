@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cqa.local/schemas/parser-request.schema.json",
+  "title": "ParserRequest",
+  "description": "One JSON object on parser-cli stdin.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "files"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "jobs": { "type": "integer", "minimum": 1 },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "language"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "language": {
+            "type": "string",
+            "enum": ["python", "typescript", "javascript"]
+          },
+          "content": {
+            "type": "string",
+            "description": "Optional source. When absent the parser reads path from disk."
+          }
+        }
+      }
+    }
+  }
+}

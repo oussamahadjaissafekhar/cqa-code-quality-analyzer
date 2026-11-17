@@ -1,0 +1,12 @@
+# Normalize text files to LF in the repository so Docker entrypoints, shell
+# scripts, and CI YAML behave identically on Windows, macOS, and Linux.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary

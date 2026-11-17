@@ -1,0 +1,22 @@
+# Lightweight local checks; CI remains the source of truth.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.5
+    hooks:
+      - id: ruff
+        args: [--fix]
+        files: ^(src|tests/python)/
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: python -m mypy src/cqa
+        language: system
+        pass_filenames: false
+        files: ^src/cqa/
+      - id: tsc
+        name: TypeScript typecheck
+        entry: npm run typecheck
+        language: system
+        pass_filenames: false
+        files: ^(packages|tests/ts)/

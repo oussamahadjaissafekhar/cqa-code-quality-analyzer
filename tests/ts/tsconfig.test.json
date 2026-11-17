@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "rootDir": "../..",
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "types": ["node", "jest"]
+  },
+  "include": ["../../packages/**/*.ts", "../../tests/ts/**/*.ts"]
+}

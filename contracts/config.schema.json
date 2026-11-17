@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cqa.local/schemas/config.schema.json",
+  "title": "CQA Config",
+  "description": "cqa.toml / .cqa.toml / pyproject.toml [tool.cqa]. Unknown keys are errors (fail closed).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "discover": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "include": { "type": "array", "items": { "type": "string" } },
+        "exclude": { "type": "array", "items": { "type": "string" } },
+        "use_gitignore": { "type": "boolean" }
+      }
+    },
+    "parser": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "languages": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["python", "typescript", "javascript"] },
+          "uniqueItems": true
+        },
+        "timeout_s": { "type": "integer", "minimum": 1 },
+        "jobs": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "disable": { "type": "array", "items": { "type": "string" } },
+        "overrides": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "severity": {
+                "type": "string",
+                "enum": ["critical", "high", "medium", "low", "info"]
+              },
+              "enabled": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+    "thresholds": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fail_on": {
+          "type": "string",
+          "enum": ["critical", "high", "medium", "low", "info", "never"]
+        },
+        "max_critical": { "type": "integer", "minimum": 0 },
+        "max_high": { "type": "integer", "minimum": 0 },
+        "max_medium": { "type": "integer", "minimum": 0 },
+        "max_low": { "type": "integer", "minimum": 0 },
+        "max_info": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "report": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "formats": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["json", "sarif", "markdown", "github", "table"]
+          },
+          "uniqueItems": true
+        },
+        "sarif": { "type": "boolean" }
+      }
+    }
+  }
+}

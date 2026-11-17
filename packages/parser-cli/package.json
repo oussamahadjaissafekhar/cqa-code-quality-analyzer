@@ -1,0 +1,22 @@
+{
+  "name": "@cqa/parser-cli",
+  "version": "0.1.0",
+  "private": true,
+  "description": "stdin JSON ParserRequest -> stdout JSON ParserResponse",
+  "main": "dist/main.js",
+  "bin": {
+    "cqa-parser": "dist/main.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "tsc -b --clean",
+    "typecheck": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@cqa/parser-core": "0.1.0",
+    "@cqa/shared": "0.1.0"
+  }
+}

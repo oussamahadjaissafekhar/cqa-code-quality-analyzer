@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cqa.local/schemas/parser-response.schema.json",
+  "title": "ParserResponse",
+  "description": "One JSON object on parser-cli stdout. Facts only, never verdicts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "files", "errors"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "language", "ok", "facts"],
+        "properties": {
+          "path": { "type": "string" },
+          "language": { "type": "string" },
+          "ok": { "type": "boolean" },
+          "error": { "type": "string" },
+          "facts": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["imports", "calls", "literals", "functions"],
+            "properties": {
+              "imports": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["from", "names", "line"],
+                  "properties": {
+                    "from": { "type": "string" },
+                    "names": { "type": "array", "items": { "type": "string" } },
+                    "line": { "type": "integer", "minimum": 1 }
+                  }
+                }
+              },
+              "calls": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["callee", "line", "col", "args_kind"],
+                  "properties": {
+                    "callee": { "type": "string" },
+                    "line": { "type": "integer", "minimum": 1 },
+                    "col": { "type": "integer", "minimum": 1 },
+                    "args_kind": {
+                      "type": "string",
+                      "enum": ["empty", "literal", "dynamic", "mixed"]
+                    }
+                  }
+                }
+              },
+              "literals": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["value", "line", "col", "kind"],
+                  "properties": {
+                    "value": { "type": "string" },
+                    "line": { "type": "integer", "minimum": 1 },
+                    "col": { "type": "integer", "minimum": 1 },
+                    "kind": {
+                      "type": "string",
+                      "enum": ["string", "template", "number", "boolean"]
+                    }
+                  }
+                }
+              },
+              "functions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["name", "line", "complexity"],
+                  "properties": {
+                    "name": { "type": "string" },
+                    "line": { "type": "integer", "minimum": 1 },
+                    "complexity": { "type": "integer", "minimum": 1 }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "message", "kind"],
+        "properties": {
+          "path": { "type": "string" },
+          "message": { "type": "string" },
+          "kind": { "type": "string", "enum": ["parse", "io", "internal"] }
+        }
+      }
+    }
+  }
+}
