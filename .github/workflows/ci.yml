@@ -65,11 +65,22 @@ jobs:
           pip install jsonschema
           python - <<'PY'
           import json
-          from jsonschema import Draft202012Validator
+          from pathlib import Path
 
-          result = json.load(open("cqa-results.json", encoding="utf-8"))
-          schema = json.load(open("contracts/analysis-result.schema.json", encoding="utf-8"))
-          Draft202012Validator(schema).validate(result)
+          from jsonschema import Draft202012Validator
+          from referencing import Registry, Resource
+
+          contracts = Path("contracts")
+          schemas = [
+              json.loads(path.read_text(encoding="utf-8"))
+              for path in contracts.glob("*.schema.json")
+          ]
+          registry = Registry().with_resources(
+              (schema["$id"], Resource.from_contents(schema)) for schema in schemas
+          )
+          result = json.loads(Path("cqa-results.json").read_text(encoding="utf-8"))
+          schema = next(s for s in schemas if s["$id"].endswith("analysis-result.schema.json"))
+          Draft202012Validator(schema, registry=registry).validate(result)
           print("schema valid:", result["summary"])
           PY
 
